@@ -1,0 +1,99 @@
+---
+title: "HW1_Typical_Employee_Survey_Data"
+author: "Yichun Wang"
+date: "2025-9-20"
+output: html_document
+---
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+```{r}
+need <- c("readr","dplyr")
+to_install <- setdiff(need, rownames(installed.packages()))
+if (length(to_install)) install.packages(to_install)
+library(readr)
+library(dplyr)
+```
+
+```{r}
+df <- read_csv("Typical_Employee_Survey_Data.csv",
+               col_names = FALSE, show_col_types = FALSE)
+colnames(df) <- paste0("V", seq_len(ncol(df)))
+dim(df)
+head(df)
+```
+```{r}
+five_point <- function(x) {
+  qs <- quantile(x, probs = c(0,.25,.5,.75,1), na.rm = TRUE)
+  data.frame(min=qs[1], Q1=qs[2], median=qs[3], Q3=qs[4], max=qs[5])
+}
+is_small_int_code <- function(x){
+  ux <- unique(na.omit(x))
+  if (!all(is.finite(ux))) return(FALSE)
+  all(ux == floor(ux)) && all(ux >= 0) && all(ux <= 10)
+}
+choose_factor_cols <- function(data){
+  uniqn <- sapply(data, function(x) length(unique(na.omit(x))))
+  small <- sapply(data, is_small_int_code)
+  names(data)[ (uniqn <= 6) | small ]
+}
+to_factor <- function(data, cols){
+  for (nm in cols) data[[nm]] <- factor(data[[nm]])
+  data
+}
+plot_by_type <- function(data, numeric_cols, factor_cols){
+  for (nm in numeric_cols){
+    hist(data[[nm]], main=paste("Histogram -", nm), xlab=nm)
+    boxplot(data[[nm]], main=paste("Boxplot -", nm), ylab=nm)
+  }
+  for (nm in factor_cols){
+    barplot(table(data[[nm]]), main=paste("Barplot -", nm),
+            xlab=nm, ylab="Count")
+  }
+}
+
+plot_scatter_pairs <- function(data, numeric_cols, n_pairs=3){
+  if (length(numeric_cols) < 2) { message(""); return(invisible()) }
+  pairs <- combn(numeric_cols, 2, simplify=FALSE)
+  for (i in seq_len(min(n_pairs, length(pairs)))){
+    xnm <- pairs[[i]][1]; ynm <- pairs[[i]][2]
+    plot(data[[xnm]], data[[ynm]],
+         xlab=xnm, ylab=ynm, main=paste("Scatter:", xnm, "vs", ynm))
+  }
+}
+
+```
+```{r}
+factor_cols <- choose_factor_cols(df)
+
+# factor_cols <- union(factor_cols, c("V2","V3","V4","V6","V7","V8","V9","V10","V11"))
+
+df2 <- to_factor(df, factor_cols)
+numeric_cols <- setdiff(names(df2), factor_cols)
+
+str(df2)
+factor_cols
+numeric_cols
+
+```
+
+```{r}
+summ_list <- lapply(df2[numeric_cols], five_point)
+five_summary <- bind_rows(summ_list, .id="variable")
+five_summary
+
+for (nm in numeric_cols) {
+  boxplot(df2[[nm]], main=paste("Boxplot -", nm), ylab=nm)
+}
+```
+```{r}
+plot_by_type(df2, numeric_cols, factor_cols)
+```
+```{r}
+plot_scatter_pairs(df2, numeric_cols, n_pairs = 3)
+```
+
+
+
+
